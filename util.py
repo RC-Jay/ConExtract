@@ -84,7 +84,12 @@ class PreProcess(object):
                 for i in range(len(sent)):
                     word_vec.append(self.vocabularyWords.index(sent[i]))  ## Adding Word as a feature
                     word_vec.append(len(sent[i]))                         ## Adding length of word as a Feature
-                    ## TODO Add regex features
+                    t = evalRegex(sent[i])                                ## Adding regex match as feature
+                    if t:
+                        word_vec.append(t)
+                    else:
+                        print "No match in regex lib"
+                        exit(0)
                     word_vec.append(self.evalRegex(sent[i]))
                     word_vec.append(self.vocabularyPortStem.index(self.porterStemmer.stem(sent[i]))) ## Porter stemming
                     word_vec.append(self.vocabularyLancStem.index(self.lancasterStemmer.stem(sent[i]))) ## Lancaster stemming
@@ -104,13 +109,36 @@ class PreProcess(object):
             return ALLCAPS
         elif re.match(r"[A-Za-z]*[A-Z]+[a-z]+[a-zA-Z]*", word):
             retun CAPSMIX
+        elif re.match(r"(?=[^aeiouAEIOU])(?=[a-zA-Z])", word):
+            return NOVOWELS
         elif re.match(r"[A-Za-z0-9]*[0-9]+[a-zA-Z]+[a-zA-Z0-9]*", word):
             return HASDIGIT
         elif re.match(r"^[-]?[0-9]$", word):
             return SINGLEDIGIT
         elif re.match(r"^[-]?[0-9]{2}$",word):
             return DOUBLEDIGIT
-        elif re.match(r"^[-]?[0-9]{4}$",
+        elif re.match(r"^[-]?[0-9]{4}$", word):
+            return FOURDIGITS
+        elif re.match(r"^[-]?[0-9]{5}$", word):
+            return FIVEDIGITS
+        elif(r"^[0-9]+$", word):
+            return NATURALNUM
+        elif re.match(r"^[+-]?(?:\d+\.?\d+|\d*\.\d+|\d+\/\d+)$", word):
+            return REALNUM
+        elif re.match(r"[a-zA-Z0-9]+", word):
+            return ALPHANUM
+        elif re.match(r"[a-zA-Z0-9]*[-]+[a-zA-Z0-9]*", word):           # TODO - Check if dash is '-'(hyphen)
+            return HASDASH
+        elif re.match(r"^[.]$", word):
+            return PUNCTUATION
+        # TODO - Regex for phone nums, find structure
+        elif re.match(r"(?=[a-zA-Z0-9]*[-])(?=[a-zA-Z]*[0-9])(?=[a-zA-Z0-9][a-zA-Z])", word):
+            return HASDASHNUMALPHA
+        elif re.match(r"^[-/.]$", word):
+            return DATESEPARATOR
+        else:
+            return False
+
 
 
 

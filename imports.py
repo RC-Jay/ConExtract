@@ -7,21 +7,21 @@ import pickle
 
 ## Regex constants ##
 
-INITCAP = "init cap"
-ALLCAPS = "all caps"
-CAPSMIX = "caps mix"
-HASDIGIT = "has digit"
-SINGLEDIGIT = "single digit"
-DOUBLEDIGIT = "double digit"
-FOURDIGITS = "four digit"
-NATURALNUM = 'natural number'
-REALNUM = 'real number'
-ALPHANUM = 'alpha number'
-HASDASH = 'has dash'
-PUNCTUATION = 'punctuation'
-PHONE1 = 'phone 1'
-PHONE2 = 'phone 2'
-FIVEDIGIT = 'five digit'
-NOVOWELS = 'no vowels'
-HASDASHNUMALPHA = 'has dash num alpha'
-DATESEPARATOR = 'date separator'
+INITCAP = 101
+ALLCAPS = 102
+CAPSMIX =103
+HASDIGIT = 104
+SINGLEDIGIT = 105
+DOUBLEDIGIT = 106
+FOURDIGITS = 107
+NATURALNUM = 108
+REALNUM = 109
+ALPHANUM = 110
+HASDASH = 111
+PUNCTUATION = 112
+PHONE1 = 113
+PHONE2 = 114
+FIVEDIGIT = 115
+NOVOWELS = 116
+HASDASHNUMALPHA = 117
+DATESEPARATOR = 118
