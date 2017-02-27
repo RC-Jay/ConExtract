@@ -40,7 +40,9 @@ class PreProcess(object):
         # for doc in docs:
         #     print doc
         #     exit(0)
-        return self.docs
+        self.makeFeatureList()
+
+        return
 
     def sentTokenize(self, doc):
         """
@@ -75,23 +77,23 @@ class PreProcess(object):
                 for word in words:
                     if not word in self.vocabularyWords:  ## TODO test by using only lower case words
                         self.vocabularyWords.append(word)  ## Creating a list of all the unique words present
-                        #  in the dataset. This helps us represent features
-                        #  like words with an appropriate IR model """
+                                                            #  in the dataset. This helps us represent features
+                                                            #  like words with an appropriate IR model
 
                     temp = self.porterStemmer.stem(word)
                     if not temp in self.vocabularyPortStem:
                         self.vocabularyPortStem.append(temp)  ## Creating a list of all the unique words obtained
-                        # by using Porter Stemming algorithm '''
+                                                               # by using Porter Stemming algorithm
 
                     temp = self.lancasterStemmer.stem(word)
                     if not temp in self.vocabularyLancStem:
                         self.vocabularyLancStem.append(temp)  ## Creating a list of all the unique words obtained
-                        # by using Lancaster Stemming algorithm '''
+                                                               # by using Lancaster Stemming algorithm
 
                     temp = self.wordnetLemmatizer.lemmatize(word)
                     if not temp in self.vocabularyWordnetLem:
                         self.vocabularyWordnetLem.append(temp)  ## Creating a list of all the unique words obtained
-                        # by using Wordnet Lemmatizer '''
+                                                                 # by using Wordnet Lemmatizer
 
         except Exception as e:
             print "Failing at Word tokenization.."
@@ -109,12 +111,16 @@ class PreProcess(object):
         """
 
         try:
-            word_vec = calcWordFeats()
+            word_vecs = self.calcWordFeats()
+            sent_vecs = self.calcSentenceFeats()
+            ngram_vecs = self.calcNgramFeats()
+
         except Exception as e:
             print "Failing at making Feature list..."
             return False
 
         return
+
 
     def calcWordFeats(self):
         """
@@ -122,16 +128,17 @@ class PreProcess(object):
         word
         """
 
-        word_vec = []
+        word_vecs = []
         for doc in self.docs:
             for sent in doc:
+                word_vec = []
                 for i in range(len(sent)):
 
                     word_vec.append(self.vocabularyWords.index(sent[i]))  ## Adding Word as a feature
 
                     word_vec.append(len(sent[i]))                         ## Adding length of word as a Feature
 
-                    t = evalRegex(sent[i])                                ## Adding regex match as feature
+                    t = self.evalRegex(sent[i])                                ## Adding regex match as feature
                     if t:
                         word_vec.append(t)
                     else:
@@ -143,8 +150,14 @@ class PreProcess(object):
                     word_vec.append(self.vocabularyLancStem.index(self.lancasterStemmer.stem(sent[i]))) ## Lancaster stemming
 
                     ## Wordnet at sentence level
-                    ## word_vec.append(self.vocabularyWordnetLem.index(self.wordnetLemmatizer.lemmatize(sent[i]))) ## Porter stemming
+                    ## word_vec.append(self.vocabularyWordnetLem.index(self.wordnetLemmatizer.lemmatize(sent[i])))
                     ## TODO pass pos as a parameter to lemmatizer.
+
+                    ## TODO - Wordshape classifer - Stanford CoreNLP library.
+
+                word_vecs.append(word_vec)
+
+        return word_vecs
 
 
     def evalRegex(self, word):
@@ -184,6 +197,43 @@ class PreProcess(object):
             return DATESEPARATOR
         else:
             return False
+
+    def calcSentenceFeats(self):
+
+        sent_vecs = []
+        for doc in self.docs:
+            for sent in doc:
+                sent_vec = []
+                pos = self.tagger.tag(self.word_tokenizer.tokenize(sent))
+                for item in pos:
+                    sent_vec.append(item[1])
+                    sent_vec.append(self.vocabularyWordnetLem.index(self.wordnetLemmatizer.lemmatize(item[0], item[1])))
+                    ## TODO - Formatted text
+                sent_vecs.append(sent_vec)
+        return sent_vecs
+
+    def calcNgramFeats(self):
+
+        ngram_vecs = []
+        for doc in self.docs:
+            for sent in doc:
+                ngram_vec = []
+                for i in range(len(sent)):
+                    if i == 0:
+                        ngram_vec.append(-1)
+                    else:
+                        ngram_vec.append(self.vocabularyWords.index(sent[i-1]))
+                    if i == len(sent) - 1:
+                        ngram_vec.append(-1)
+                    else:
+                        ngram_vec.append(self.vocabularyWords.index(sent[i + 1]))
+
+                ngram_vecs.append(ngram_vec)
+
+        return ngram_vecs
+
+
+
 
 
 
