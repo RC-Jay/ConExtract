@@ -4,7 +4,11 @@ import sys
 import os
 import glob
 import pickle
+import re
+import pennToWordnet as pwn
 
+LOAD_DOCS = True
+LOAD_FEATS = False
 ## Regex constants ##
 
 INITCAP = 101
@@ -21,7 +25,8 @@ HASDASH = 111
 PUNCTUATION = 112
 PHONE1 = 113
 PHONE2 = 114
-FIVEDIGIT = 115
+FIVEDIGITS = 115
 NOVOWELS = 116
 HASDASHNUMALPHA = 117
 DATESEPARATOR = 118
+
