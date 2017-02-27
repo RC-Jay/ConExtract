@@ -1,6 +1,15 @@
 from imports import *
 
 class PreProcess(object):
+    """
+    This class helps achieve all the Pre processing that needs to be done on the
+    medical text, and finally returns the features that we would use to extract
+    concept information.
+
+    :params in constructor class
+
+    path - The path where the training data (i.e the medical reports in .txt) resides.
+    """
 
     def __init__(self, path):
         self.path = path
@@ -34,6 +43,15 @@ class PreProcess(object):
         return self.docs
 
     def sentTokenize(self, doc):
+        """
+        A method that returns a list of all sentences found in a string(Medical
+        Report)
+
+        :params
+
+        doc - A string that represents one medical report in the training data
+        """
+
         try:
             return self.sent_tokenizer.tokenize(doc)
         except Exception as e:
@@ -41,26 +59,39 @@ class PreProcess(object):
             return False
 
     def wordTokenize(self, sents):
+        """
+        A method that returns a word level split of all the sentences passed to it
+
+        :params
+
+        sents = list of sentences(Output from sentTokenize())
+        """
+
         doc = []
         try:
             for sent in sents:
                 words = self.word_tokenizer.tokenize(sent)
                 doc.append(words)
                 for word in words:
-                    if not word in self.vocabularyWords:             ## TODO test by using only lower case words
-                        self.vocabularyWords.append(word)
+                    if not word in self.vocabularyWords:  ## TODO test by using only lower case words
+                        self.vocabularyWords.append(word)  ## Creating a list of all the unique words present
+                        #  in the dataset. This helps us represent features
+                        #  like words with an appropriate IR model """
 
                     temp = self.porterStemmer.stem(word)
                     if not temp in self.vocabularyPortStem:
-                        self.vocabularyPortStem.append(temp)
+                        self.vocabularyPortStem.append(temp)  ## Creating a list of all the unique words obtained
+                        # by using Porter Stemming algorithm '''
 
                     temp = self.lancasterStemmer.stem(word)
                     if not temp in self.vocabularyLancStem:
-                        self.vocabularyLancStem.append(temp)
+                        self.vocabularyLancStem.append(temp)  ## Creating a list of all the unique words obtained
+                        # by using Lancaster Stemming algorithm '''
 
                     temp = self.wordnetLemmatizer.lemmatize(word)
                     if not temp in self.vocabularyWordnetLem:
-                        self.vocabularyWordnetLem.append(temp)
+                        self.vocabularyWordnetLem.append(temp)  ## Creating a list of all the unique words obtained
+                        # by using Wordnet Lemmatizer '''
 
         except Exception as e:
             print "Failing at Word tokenization.."
@@ -68,6 +99,15 @@ class PreProcess(object):
         return doc
 
     def makeFeatureList(self):
+        """
+        This method runs all the neccessary modules to generate the final feature
+        set we would like to pass to a ML algorithm
+
+        There are three steps here. We calcuate the word features, sentence features
+        and ngram features in that order. Finally we merge all the vectors to obtain
+        the feature set.
+        """
+
         try:
             word_vec = calcWordFeats()
         except Exception as e:
@@ -77,28 +117,34 @@ class PreProcess(object):
         return
 
     def calcWordFeats(self):
+        """
+        This method returns a vector containing all the word features extracted per
+        word
+        """
 
         word_vec = []
         for doc in self.docs:
             for sent in doc:
                 for i in range(len(sent)):
+
                     word_vec.append(self.vocabularyWords.index(sent[i]))  ## Adding Word as a feature
+
                     word_vec.append(len(sent[i]))                         ## Adding length of word as a Feature
+
                     t = evalRegex(sent[i])                                ## Adding regex match as feature
                     if t:
                         word_vec.append(t)
                     else:
                         print "No match in regex lib"
                         exit(0)
-                    word_vec.append(self.evalRegex(sent[i]))
+
                     word_vec.append(self.vocabularyPortStem.index(self.porterStemmer.stem(sent[i]))) ## Porter stemming
+
                     word_vec.append(self.vocabularyLancStem.index(self.lancasterStemmer.stem(sent[i]))) ## Lancaster stemming
 
                     ## Wordnet at sentence level
                     ## word_vec.append(self.vocabularyWordnetLem.index(self.wordnetLemmatizer.lemmatize(sent[i]))) ## Porter stemming
                     ## TODO pass pos as a parameter to lemmatizer.
-
-
 
 
     def evalRegex(self, word):
@@ -108,7 +154,7 @@ class PreProcess(object):
         elif re.match(r"[A-Z]+", word):
             return ALLCAPS
         elif re.match(r"[A-Za-z]*[A-Z]+[a-z]+[a-zA-Z]*", word):
-            retun CAPSMIX
+            return CAPSMIX
         elif re.match(r"(?=[^aeiouAEIOU])(?=[a-zA-Z])", word):
             return NOVOWELS
         elif re.match(r"[A-Za-z0-9]*[0-9]+[a-zA-Z]+[a-zA-Z0-9]*", word):
