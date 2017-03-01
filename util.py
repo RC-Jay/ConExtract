@@ -27,26 +27,64 @@ class PreProcess(object):
         self.vocabularyLancStem = []
         self.vocabularySnowStem = []
         self.vocabularyWordnetLem = []
+        self.vocabularyWordShapes = []
+        self.vocabularyPOSTags = []
         # TODO Try other models of  word representation - Word2Vec
 
-
         if LOAD_DOCS:
-            f = open("pickled/docs.pkl", 'rb')
+            print "Retrieving pickled docs and vocabularies"
+
+            f = open("pickled/docs.pkl", "rb")
             self.docs = pickle.load(f)
             f.close()
+
+            f = open("pickled/words.pkl", "rb")
+            self.vocabularyWords = pickle.load(f)
+            f.close()
+
+            f = open("pickled/portStem.pkl", "rb")
+            self.vocabularyPortStem = pickle.load(f)
+            f.close()
+
+            f = open("pickled/lancStem.pkl", "rb")
+            self.vocabularyLancStem = pickle.load(f)
+            f.close()
+
+            f = open("pickled/wnLem.pkl", "rb")
+            self.vocabularyWordnetLem = pickle.load(f)
+            f.close()
+
         else:
             self.docs = []
 
             print "Initialization of docs..."
-            for filename in glob.glob(os.path.join(path, '*.txt')):
+            filelist = glob.glob(os.path.join(path, '*.txt'))
+            for filename in sorted(filelist, cmp=locale.strcoll):
                 print "Processing file - " + str(filename)
                 f = open(filename,'r')
                 doc = f.read()
                 self.docs.append(self.wordTokenize(self.sentTokenize(str(doc))))
 
-            print "Pickling all the docs"
+            print "Pickling all the docs and vocabularies"
+
             f = open("pickled/docs.pkl", "wb")
             pickle.dump(self.docs, f)
+            f.close()
+
+            f = open("pickled/words.pkl", "wb")
+            pickle.dump(self.vocabularyWords, f)
+            f.close()
+
+            f = open("pickled/portStem.pkl", "wb")
+            pickle.dump(self.vocabularyPortStem, f)
+            f.close()
+
+            f = open("pickled/lancStem.pkl", "wb")
+            pickle.dump(self.vocabularyLancStem, f)
+            f.close()
+
+            f = open("pickled/wnLem.pkl", "wb")
+            pickle.dump(self.vocabularyWordnetLem, f)
             f.close()
 
         if LOAD_FEATS:
@@ -176,6 +214,13 @@ class PreProcess(object):
                         word_vec.append(self.vocabularyLancStem.index(self.lancasterStemmer.stem(sent[i]))) # Lancaster stemming
 
                         # TODO - Wordshape classifer - Stanford CoreNLP library.
+                        wordShapes = ws.getWordShapes(sent[i])
+                        for shape in wordShapes:
+                            if shape in self.vocabularyWordShapes:
+                                word_vec.append(self.vocabularyWordShapes.index(shape))
+                            else:
+                                self.vocabularyWordShapes.append(shape)
+                                word_vec.append(self.vocabularyWordShapes.index(shape))
                         print str(sent[i]) + ": " + str(word_vec)
                         word_vecs.append(word_vec)
 
@@ -214,14 +259,17 @@ class PreProcess(object):
                 return REALNUM
             elif re.match(r"[a-zA-Z0-9]+", word):
                 return ALPHANUM
-            elif re.match(r"[a-zA-Z0-9]*[-]+[a-zA-Z0-9]*", word):           # TODO - Check if dash is '-'(hyphen)
+            elif re.match(r"[a-zA-Z0-9]*[-]+[a-zA-Z0-9]*", word):           # TODO - Try by using + instead of *
                 return HASDASH
             elif re.match(r"^[.]$", word):
                 return PUNCTUATION
-            # TODO - Regex for phone nums, find structure
+            elif re.match(r"^[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]$", word):
+                return PHONE1
+            elif re.match(r"^[0-9][0-9][0-9]-[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]$", word):
+                return PHONE2
             elif re.match(r"(?=[a-zA-Z0-9]*[-])(?=[a-zA-Z]*[0-9])(?=[a-zA-Z0-9][a-zA-Z])", word):
                 return HASDASHNUMALPHA
-            elif re.match(r"^[-/.]$", word):
+            elif re.match(r"^[-/]$", word):
                 return DATESEPARATOR
             else:
                 return False
@@ -230,21 +278,50 @@ class PreProcess(object):
             print str(e.message)
             return False
 
+        '''
+        "INITCAP" : r"^[A-Z].*$",
+		"ALLCAPS" : r"^[A-Z]+$",
+		"CAPSMIX" : r"^[A-Za-z]+$",
+		"HASDIGIT" : r"^.*[0-9].*$",
+		"SINGLEDIGIT" : r"^[0-9]$",
+		"DOUBLEDIGIT" : r"^[0-9][0-9]$",
+		"FOURDIGITS" : r"^[0-9][0-9][0-9][0-9]$",
+		"NATURALNUM" : r"^[0-9]+$",
+		"REALNUM" : r"^[0-9]+.[0-9]+$",
+		"ALPHANUM" : r"^[0-9A-Za-z]+$",
+		"HASDASH" : r"^.*-.*$",
+		"PUNCTUATION" : r"^[^A-Za-z0-9]+$",
+		"PHONE1" : r"^[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]$",
+		"PHONE2" : r"^[0-9][0-9][0-9]-[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]$",
+		"FIVEDIGIT" : r"^[0-9][0-9][0-9][0-9][0-9]",
+		"NOVOWELS" : r"^[^AaEeIiOoUu]+$",
+		"HASDASHNUMALPHA" : r"^.*[A-z].*-.*[0-9].*$ | *.[0-9].*-.*[0-9].*$",
+		"DATESEPERATOR" : r"^[-/]$",
+        '''
+
     def calcSentenceFeats(self):
 
         try:
             print "Extracting sentence level features.."
             sent_vecs = []
             for doc in self.docs:
-                for sent in doc:
+                for j, sent in enumerate(doc):
 
                     pos = self.tagger.tag(sent)
                     for word, tag in pos:
                         sent_vec = []
-                        sent_vec.append(word)
+                        if tag in self.vocabularyPOSTags:
+                            sent_vec.append(self.vocabularyPOSTags.index(tag))
+                        else:
+                            self.vocabularyPOSTags.append(tag)
+                            sent_vec.append(self.vocabularyPOSTags.index(tag))
                         sent_vec.append(self.vocabularyWordnetLem.index(self.wordnetLemmatizer.lemmatize(word, \
                                                                                           pwn.penn_to_wn(tag))))
-                        # TODO - Formatted text
+                        right = " ".join([w for w in sent[j:]])
+                        if self.is_test_result(right):
+                            sent_vec.append(1)
+                        else:
+                            sent_vec.append(0)
                         print word + ": " + str(sent_vec)
                         sent_vecs.append(sent_vec)
 
@@ -255,8 +332,16 @@ class PreProcess(object):
             print str(e.message)
             return False
 
+    def is_test_result(self, context):
+        # note: make spaces optional?
+        regex = r"^[A-Za-z]+( )*(-|--|:|was|of|\*|>|<|more than|less than)( )*[0-9]+(%)*"
+        if not re.search(regex, context):
+            return False
+        return True
+
     def calcNgramFeats(self):
 
+        # TODO - Add more features of prev and next words.
         try:
             print "Extracting ngram level features.."
             ngram_vecs = []
