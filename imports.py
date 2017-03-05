@@ -8,9 +8,12 @@ import re
 import pennToWordnet as pwn
 import locale
 import WordShapeClassifer as ws
+import itertools
+import numpy as np
+
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
-LOAD_DOCS = True
+LOAD_DOCS = False
 LOAD_FEATS = False
 ## Regex constants ##
 

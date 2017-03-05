@@ -12,7 +12,7 @@ class PreProcess(object):
     """
 
     def __init__(self, path):
-        self.path = path
+        self.rootPath = path
 
         self.sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
         self.word_tokenizer = nltk.tokenize.TreebankWordTokenizer()
@@ -38,6 +38,10 @@ class PreProcess(object):
             self.docs = pickle.load(f)
             f.close()
 
+            f = open("pickled/labels.pkl", "rb")
+            self.labels = pickle.load(f)
+            f.close()
+
             f = open("pickled/words.pkl", "rb")
             self.vocabularyWords = pickle.load(f)
             f.close()
@@ -54,21 +58,37 @@ class PreProcess(object):
             self.vocabularyWordnetLem = pickle.load(f)
             f.close()
 
+            print len(self.labels), len(self.docs)
+
         else:
             self.docs = []
+            self.labels = []
 
             print "Initialization of docs..."
-            filelist = glob.glob(os.path.join(path, '*.txt'))
-            for filename in sorted(filelist, cmp=locale.strcoll):
-                print "Processing file - " + str(filename)
+            filelist = glob.glob(os.path.join(self.rootPath + "txt", '*.txt'))      # List of all files that contains the individual reports in txt
+            conlist = glob.glob(os.path.join(self.rootPath + "concept", '*.con'))   # Syynchronised list of annotated classes for the medical reports
+            for filename, conname in zip(sorted(filelist, cmp=locale.strcoll), sorted(conlist, cmp=locale.strcoll)):
+                print "Processing file - " + str(filename) + " -- " + str(conname)
                 f = open(filename,'r')
-                doc = f.read()
-                self.docs.append(self.wordTokenize(self.sentTokenize(str(doc))))
+                doc = f.readlines()
+                f.close()
+
+                f = open(conname, 'r')
+                con = f.readlines()
+                f.close()
+
+                temp = self.wordTokenize(doc, con)
+                self.docs.append(temp[0])
+                self.labels.append(temp[1])
 
             print "Pickling all the docs and vocabularies"
 
             f = open("pickled/docs.pkl", "wb")
             pickle.dump(self.docs, f)
+            f.close()
+
+            f = open("pickled/labels.pkl", "wb")
+            pickle.dump(self.labels, f)
             f.close()
 
             f = open("pickled/words.pkl", "wb")
@@ -88,20 +108,49 @@ class PreProcess(object):
             f.close()
 
         if LOAD_FEATS:
-            f = open("pickled/feats.pkl", 'rb')
-            self.feats = pickle.load(f)
+            f = open("pickled/x_feats.pkl", 'rb')
+            self.X = pickle.load(f)
             f.close()
+
+            f = open("pickled/y_feats.pkl", 'rb')
+            self.y = pickle.load(f)
+            f.close()
+
+            print len(self.X), len(self.y)
+
+
         else:
-            self.feats = []
             print "Making feature list"
-            self.makeFeatureList()
+            self.X = self.makeFeatureList()
+
+            self.y = self.flatten(self.labels)
 
             print "Pickling all the feats"
-            f = open("pickled/feats.pkl", "wb")
-            pickle.dump(self.feats, f)
+            f = open("pickled/x_feats.pkl", "wb")
+            pickle.dump(self.X, f)
             f.close()
 
-        return
+            f = open("pickled/y_feats.pkl", "wb")
+            pickle.dump(self.y, f)
+            f.close()
+
+        #print len(self.X), len(self.y)
+        return (self.X, self.y)
+
+
+    def flatten(self, list):
+        '''
+        Method to flatten the list of labels to 1-D
+        :param list: Contains a 3 level list of all corresponding classes of training corpora
+        :return: Flattened list of classes (self.y)
+        '''
+        result = []
+        for doc in list:
+            for sent in doc:
+                for word in sent:
+                    result.append(word)
+
+        return result
 
     def sentTokenize(self, doc):
         """
@@ -120,7 +169,7 @@ class PreProcess(object):
             print str(e.message)
             return False
 
-    def wordTokenize(self, sents):
+    def wordTokenize(self, sents, con):
         """
         A method that returns a word level split of all the sentences passed to it
 
@@ -130,9 +179,12 @@ class PreProcess(object):
         """
 
         doc = []
+        #labels = [[None] * len(sent) for sent in sents]
+        labels = []
         try:
-            for sent in sents:
+            for i, sent in enumerate(sents):
                 words = self.word_tokenizer.tokenize(sent)
+                labels.append([None]*len(words))
                 pos = self.tagger.tag(words)
                 doc.append(words)
                 for word, tag in pos:
@@ -155,12 +207,28 @@ class PreProcess(object):
                     if not temp in self.vocabularyWordnetLem:
                         self.vocabularyWordnetLem.append(temp)   # Creating a list of all the unique words obtained
                                                                  # by using Wordnet Lemmatizer
+            for line in con:
+                c, t = line.split('||')
+                t = t[3:-2]
+                d = re.search(r'\"(.+?)\"', c)
+                d = d.group(1)
+                c = c.split()
+                start = c[-2].split(':')
+                end = c[-1].split(':')
+                assert "concept spans one line", start[0] == end[0]
+                l = int(start[0]) - 1
+                start = (int(start[0]), int(start[1]))
+                end = (int(end[0]), int(end[1]))
+
+                if d == " ".join(doc[start[0]-1][start[1]:end[1]+1]).lower():
+                    for i in range(start[1], end[1]+1):
+                        labels[start[0]-1][i] = t
 
         except Exception as e:
             print "Failing at Word tokenization.."
-            print str(e.message)
+            print str(e.args), str(e.message)
             return False
-        return doc
+        return (doc, labels)
 
     def makeFeatureList(self):
         """
@@ -177,12 +245,13 @@ class PreProcess(object):
             sent_vecs = self.calcSentenceFeats()
             ngram_vecs = self.calcNgramFeats()
 
+            print len(ngram_vecs), len(sent_vecs), len(word_vecs)
         except Exception as e:
             print "Failing to create Feature list..."
             print str(e.message)
             return False
 
-        return
+        return np.hstack((word_vecs, sent_vecs, ngram_vecs))
 
 
     def calcWordFeats(self):
@@ -213,7 +282,6 @@ class PreProcess(object):
 
                         word_vec.append(self.vocabularyLancStem.index(self.lancasterStemmer.stem(sent[i]))) # Lancaster stemming
 
-                        # TODO - Wordshape classifer - Stanford CoreNLP library.
                         wordShapes = ws.getWordShapes(sent[i])
                         for shape in wordShapes:
                             if shape in self.vocabularyWordShapes:
@@ -233,6 +301,11 @@ class PreProcess(object):
 
 
     def evalRegex(self, word):
+        '''
+        This method is used to evaluate the regex class of each word
+        :param word:
+        :return: Corresponding ReGex class
+        '''
 
         try:
             if re.match(r"^[A-Z][a-zA-Z]+", word):
@@ -300,6 +373,10 @@ class PreProcess(object):
         '''
 
     def calcSentenceFeats(self):
+        '''
+        Calculate the features of each word at the sentence level. Involves POS tag, Wordnet lemmatizer and a hard coded condition checker.
+        :return: Vector containing the sentence level feature of all words in sample.
+        '''
 
         try:
             print "Extracting sentence level features.."
@@ -340,6 +417,10 @@ class PreProcess(object):
         return True
 
     def calcNgramFeats(self):
+        '''
+        Calclate ngram feature i.e next and previous word of all words in sample.
+        :return: A vector containing ngram features of all words.
+        '''
 
         # TODO - Add more features of prev and next words.
         try:
@@ -374,4 +455,4 @@ class PreProcess(object):
 
 
 
-PreProcess("data/concept_assertion_relation_training_data/beth/txt")
+PreProcess("data/concept_assertion_relation_training_data/beth/")
