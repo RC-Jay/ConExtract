@@ -10,11 +10,12 @@ import locale
 import WordShapeClassifer as ws
 import itertools
 import numpy as np
-
+import sklearn as sk
+from sklearn import svm
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
-LOAD_DOCS = False
-LOAD_FEATS = False
+LOAD_DOCS = True
+LOAD_FEATS = True
 ## Regex constants ##
 
 INITCAP = 101
