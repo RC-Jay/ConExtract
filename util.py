@@ -111,6 +111,15 @@ class PreProcess(object):
             f.close()
 
         if LOAD_FEATS:
+
+            f = open("pickled/wordShape.pkl", 'rb')
+            self.vocabularyWordShapes = pickle.load(f)
+            f.close()
+
+            f = open("pickled/posTags.pkl", 'rb')
+            self.vocabularyPOSTags = pickle.load(f)
+            f.close()
+
             f = open("pickled/x_feats.pkl", 'rb')
             self.X = pickle.load(f)
             f.close()
@@ -120,6 +129,7 @@ class PreProcess(object):
             f.close()
 
             assert len(self.X) == len(self.y)
+            print len(self.X[0])
 
 
         else:
@@ -129,6 +139,15 @@ class PreProcess(object):
             self.y = self.flatten(self.labels)
 
             print "Pickling all the feats"
+
+            f = open("pickled/wordShape.pkl", "wb")
+            pickle.dump(self.vocabularyWordShapes, f)
+            f.close()
+
+            f = open("pickled/posTags.pkl", "wb")
+            pickle.dump(self.vocabularyPOSTags, f)
+            f.close()
+
             f = open("pickled/x_feats.pkl", "wb")
             pickle.dump(self.X, f)
             f.close()
@@ -138,6 +157,23 @@ class PreProcess(object):
             f.close()
 
         assert len(self.X) == len(self.y)
+
+        if ONE_HOT:
+            try:
+                f = open("pickled/featOneHot.pkl", "rb")
+                self._X = pickle.load(f)
+                f.close()
+            except:
+                print "Expanding feature space by using One-Hot notation"
+                self._X = self.expandFeatures()
+                print self.X[0]
+
+                f = open("pickled/featOneHot.pkl", "wb")
+                pickle.dump(self._X, f)
+                f.close()
+        print "Dataset size - " + str(3 * len(self.vocabularyWords) + 19 + len(self.vocabularyPortStem) + len(self.vocabularyLancStem) \
+                                      + len(self.vocabularyWordShapes) + len(self.vocabularyPOSTags) + len(self.vocabularyWordnetLem) \
+                                      + 1)
         return
 
     def getFeatures(self):
@@ -157,6 +193,54 @@ class PreProcess(object):
                     result.append(word)
 
         return result
+
+    def expandFeatures(self):
+
+        X = []
+        '''
+        self.featureNames = ["word", "lenWord", "MitRe", "portStem", "lancStem", "wordShape", "POS", "wordNetLem", \
+                             "isTest", "prevWord", "nextWord"]
+        '''
+        for i, dp in enumerate(self.X):
+
+            print "Expanding data point - " + str(i+1)
+            expFeat = []
+
+            expFeat += list(np.eye(len(self.vocabularyWords), dtype=np.int32)[dp[0]])
+
+            expFeat.append(int(dp[1]))
+
+            expFeat += list(np.eye(18, dtype=np.int32)[dp[2] - 101])
+
+            expFeat += list(np.eye(len(self.vocabularyPortStem), dtype=np.int32)[dp[3]])
+
+            expFeat += list(np.eye(len(self.vocabularyLancStem), dtype=np.int32)[dp[4]])
+
+            expFeat += list(np.eye(len(self.vocabularyWordShapes), dtype=np.int32)[dp[5]])
+
+            expFeat += list(np.eye(len(self.vocabularyWordShapes), dtype=np.int32)[dp[6]])
+
+            expFeat += list(np.eye(len(self.vocabularyWordShapes), dtype=np.int32)[dp[7]])
+
+            expFeat += list(np.eye(len(self.vocabularyWordShapes), dtype=np.int32)[dp[8]])
+
+            expFeat += list(np.eye(len(self.vocabularyWordShapes), dtype=np.int32)[dp[9]])
+
+            expFeat += list(np.eye(len(self.vocabularyPOSTags), dtype=np.int32)[dp[10]])
+
+            expFeat += list(np.eye(len(self.vocabularyWordnetLem), dtype=np.int32)[dp[11]])
+
+            expFeat.append(int(dp[12]))
+
+            expFeat += list(np.eye(len(self.vocabularyWords), dtype=np.int32)[dp[13]]) # TODO - Add all features of prev word in the mix
+
+            expFeat += list(np.eye(len(self.vocabularyWords), dtype=np.int32)[dp[14]])
+
+            X.append(expFeat)
+
+        return X
+
+
 
     def sentTokenize(self, doc):
         """
@@ -244,6 +328,7 @@ class PreProcess(object):
             return False
 
         assert len(doc) == len(labels)
+
         return (doc, labels)
 
     def makeFeatureList(self):
@@ -464,3 +549,4 @@ class PreProcess(object):
             print "Failed to calculate ngram features"
             print str(e.message)
             return False
+data = PreProcess("data/concept_assertion_relation_training_data/beth/")

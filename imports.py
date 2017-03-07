@@ -14,8 +14,10 @@ import sklearn as sk
 from sklearn import svm
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
-LOAD_DOCS = True
-LOAD_FEATS = True
+LOAD_DOCS = False
+LOAD_FEATS = False
+ONE_HOT = False
+
 ## Regex constants ##
 
 INITCAP = 101
