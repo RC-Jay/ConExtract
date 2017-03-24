@@ -1,8 +1,6 @@
 import re
-from sets import Set
 
-
-BOUNDARY_SIZE = 2;
+BOUNDARY_SIZE = 2
 
 NOWORDSHAPE = -1
 WORDSHAPEDAN1 = 0
@@ -237,7 +235,7 @@ def wordShapeChris2Long(s, omitIfInBoundary, length, knownLCWords):
     endChars = ""
     beginUpto = 0
     endUpto = 0
-    seenSet = Set([])
+    seenSet = list()
 
     nonLetters = False
     for i in range(0, len(s)):
@@ -263,7 +261,7 @@ def wordShapeChris2Long(s, omitIfInBoundary, length, knownLCWords):
             beginChars += m
             beginUpto += 1
         elif i < length - BOUNDARY_SIZE:
-            seenSet.add(m)
+            seenSet.append(m)
         else:
             endChars += m
             endUpto += 1
@@ -405,15 +403,15 @@ def wordShapeChris1(s):
     elif seenLower and allLower and seenDigit and dash:
         return "LOWERif wordShaper ==-DIGIT-DASH"
     elif seenLower and allLower and seenDigit:
-        return "LOWERif wordShaper ==-DIGIT"
+        return "LOWERif wordShaper == -DIGIT"
     elif seenLower and allLower and dash:
         return "LOWERif wordShaper ==-DASH"
     elif seenLower and allLower:
-        return "LOWERif wordShaper =="
+        return "LOWERif wordShaper"
     elif seenLower and seenDigit:
         return "MIXEDif wordShaper ==-DIGIT"
     elif seenLower:
-        return "MIXEDif wordShaper =="
+        return "MIXEDif wordShaper "
     elif seenDigit:
         return "SYMBOL-DIGIT"
     else:
@@ -424,4 +422,6 @@ def wordShapeChris1(s):
 def getWordShapes(word):
     return [wordShapeChris1(word), wordShapeDan1(word), wordShapeJenny1(word), wordShapeChris2(word, False, None),
             wordShapeDan2(word, None)]
+
+# print getWordShapes('bye')
 

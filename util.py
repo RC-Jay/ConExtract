@@ -22,15 +22,15 @@ class PreProcess(object):
         self.snowBallStemmer = nltk.stem.snowball.EnglishStemmer()
         self.lancasterStemmer = nltk.stem.lancaster.LancasterStemmer()
         self.wordnetLemmatizer = nltk.stem.wordnet.WordNetLemmatizer()
+        self.sampler = ClusterCentroids(random_state=41)
 
-        self.vocabularyWords = []
-        self.vocabularyPortStem = []
-        self.vocabularyLancStem = []
-        self.vocabularySnowStem = []
-        self.vocabularyWordnetLem = []
+        # self.vocabularyWords = []
+        # self.vocabularyPortStem = []
+        # self.vocabularyLancStem = []
+        # self.vocabularySnowStem = []
+        # self.vocabularyWordnetLem = []
         self.vocabularyWordShapes = []
         self.vocabularyPOSTags = []
-        # TODO Try other models of  word representation - Word2Vec
 
         if LOAD_DOCS:
             print "Retrieving pickled docs and vocabularies"
@@ -43,21 +43,21 @@ class PreProcess(object):
             self.labels = pickle.load(f)
             f.close()
 
-            f = open("pickled/words.pkl", "rb")
-            self.vocabularyWords = pickle.load(f)
-            f.close()
-
-            f = open("pickled/portStem.pkl", "rb")
-            self.vocabularyPortStem = pickle.load(f)
-            f.close()
-
-            f = open("pickled/lancStem.pkl", "rb")
-            self.vocabularyLancStem = pickle.load(f)
-            f.close()
-
-            f = open("pickled/wnLem.pkl", "rb")
-            self.vocabularyWordnetLem = pickle.load(f)
-            f.close()
+            # f = open("pickled/words.pkl", "rb")
+            # self.vocabularyWords = pickle.load(f)
+            # f.close()
+            #
+            # f = open("pickled/portStem.pkl", "rb")
+            # self.vocabularyPortStem = pickle.load(f)
+            # f.close()
+            #
+            # f = open("pickled/lancStem.pkl", "rb")
+            # self.vocabularyLancStem = pickle.load(f)
+            # f.close()
+            #
+            # f = open("pickled/wnLem.pkl", "rb")
+            # self.vocabularyWordnetLem = pickle.load(f)
+            # f.close()
 
             assert len(self.labels) == len(self.docs)
 
@@ -66,6 +66,7 @@ class PreProcess(object):
             self.labels = []
 
             print "Initialization of docs..."
+            t = dt.now()
             filelist = glob.glob(os.path.join(self.rootPath + "txt",
                                               '*.txt'))  # List of all files that contains the individual reports in txt
             conlist = glob.glob(os.path.join(self.rootPath + "concept",
@@ -83,6 +84,7 @@ class PreProcess(object):
                 temp = self.wordTokenize(doc, con)
                 self.docs.append(temp[0])
                 self.labels.append(temp[1])
+            print "Time Taken = " + str(dt.now() - t)
 
             print "Pickling all the docs and vocabularies"
 
@@ -94,21 +96,65 @@ class PreProcess(object):
             pickle.dump(self.labels, f)
             f.close()
 
-            f = open("pickled/words.pkl", "wb")
-            pickle.dump(self.vocabularyWords, f)
+            # f = open("pickled/words.pkl", "wb")
+            # pickle.dump(self.vocabularyWords, f)
+            # f.close()
+            #
+            # f = open("pickled/portStem.pkl", "wb")
+            # pickle.dump(self.vocabularyPortStem, f)
+            # f.close()
+            #
+            # f = open("pickled/lancStem.pkl", "wb")
+            # pickle.dump(self.vocabularyLancStem, f)
+            # f.close()
+            #
+            # f = open("pickled/wnLem.pkl", "wb")
+            # pickle.dump(self.vocabularyWordnetLem, f)
+            # f.close()
+
+        if WORD2VEC:
+            print "Retrieving word2vec models"
+
+            f = open("pickled/wv.pkl", "rb")
+            self.wvModel = pickle.load(f)
             f.close()
 
-            f = open("pickled/portStem.pkl", "wb")
-            pickle.dump(self.vocabularyPortStem, f)
+            f = open("pickled/wvPort.pkl", "rb")
+            self.wvModelPorter = pickle.load(f)
             f.close()
 
-            f = open("pickled/lancStem.pkl", "wb")
-            pickle.dump(self.vocabularyLancStem, f)
+            f = open("pickled/wvLanc.pkl", "rb")
+            self.wvModellancaster = pickle.load(f)
             f.close()
 
-            f = open("pickled/wnLem.pkl", "wb")
-            pickle.dump(self.vocabularyWordnetLem, f)
+            f = open("pickled/wvWnLem.pkl", "rb")
+            self.wvModelWnLemmatizer = pickle.load(f)
             f.close()
+
+        else:
+
+            print "Creating Word2Vec models.."
+            t = dt.now()
+
+            self.makeWord2VecModels()
+            print "Time Taken = " + str(dt.now() - t)
+
+            f = open("pickled/wv.pkl", "wb")
+            pickle.dump(self.wvModel, f)
+            f.close()
+
+            f = open("pickled/wvPort.pkl", "wb")
+            pickle.dump(self.wvModelPorter, f)
+            f.close()
+
+            f = open("pickled/wvLanc.pkl", "wb")
+            pickle.dump(self.wvModellancaster, f)
+            f.close()
+
+            f = open("pickled/wvWnLem.pkl", "wb")
+            pickle.dump(self.wvModelWnLemmatizer, f)
+            f.close()
+
 
         if LOAD_FEATS:
 
@@ -129,14 +175,15 @@ class PreProcess(object):
             f.close()
 
             assert len(self.X) == len(self.y)
-            print len(self.X[0])
 
 
         else:
             print "Making feature list"
+            t = dt.now()
             self.X = self.makeFeatureList()
 
             self.y = self.flatten(self.labels)
+            print "Time Taken = " + str(dt.now() - t)
 
             print "Pickling all the feats"
 
@@ -158,27 +205,24 @@ class PreProcess(object):
 
         assert len(self.X) == len(self.y)
 
-        if ONE_HOT:
-            try:
-                f = open("pickled/featOneHot.pkl", "rb")
-                self._X = pickle.load(f)
-                f.close()
-            except:
-                print "Expanding feature space by using One-Hot notation"
-                self._X = self.expandFeatures()
-                print self.X[0]
 
-                f = open("pickled/featOneHot.pkl", "wb")
-                pickle.dump(self._X, f)
-                f.close()
-        print "Dataset size - " + str(3 * len(self.vocabularyWords) + 19 + len(self.vocabularyPortStem) + len(self.vocabularyLancStem) \
-                                      + len(self.vocabularyWordShapes) + len(self.vocabularyPOSTags) + len(self.vocabularyWordnetLem) \
-                                      + 1)
+
+        print "Length of dataset = ",len(self.X)
+        print "Dimensions of feature space = ", len(self.X[0])
+
         return
 
-    def getFeatures(self):
+    def getFeatures(self, one_hot = False):
 
-        return self.X, self.y
+        if one_hot:
+            return self.expandFeatures(), self.y
+        else:
+            return self.X, self.y
+
+    def cleanData(self):
+        # TODO - Clean the dataset synchronously
+
+        pass
 
     def flatten(self, list):
         '''
@@ -202,45 +246,34 @@ class PreProcess(object):
                              "isTest", "prevWord", "nextWord"]
         '''
         for i, dp in enumerate(self.X):
-
-            print "Expanding data point - " + str(i+1)
+            #print "Expanding data point - " + str(i + 1)
             expFeat = []
 
-            expFeat += list(np.eye(len(self.vocabularyWords), dtype=np.int32)[dp[0]])
+            expFeat += list(dp[0:10])
 
-            expFeat.append(int(dp[1]))
+            expFeat.append(int(dp[10]))
 
-            expFeat += list(np.eye(18, dtype=np.int32)[dp[2] - 101])
+            expFeat += list(np.eye(18, dtype=np.int32)[int(dp[11]) - 101])
 
-            expFeat += list(np.eye(len(self.vocabularyPortStem), dtype=np.int32)[dp[3]])
+            expFeat += list(dp[12:22])
 
-            expFeat += list(np.eye(len(self.vocabularyLancStem), dtype=np.int32)[dp[4]])
+            expFeat += list(dp[22:32])
 
-            expFeat += list(np.eye(len(self.vocabularyWordShapes), dtype=np.int32)[dp[5]])
+            expFeat += list(dp[32:37])
 
-            expFeat += list(np.eye(len(self.vocabularyWordShapes), dtype=np.int32)[dp[6]])
+            expFeat += list(np.eye(len(self.vocabularyPOSTags), dtype=np.int32)[int(dp[10])])
 
-            expFeat += list(np.eye(len(self.vocabularyWordShapes), dtype=np.int32)[dp[7]])
+            expFeat += list(dp[38:48])
 
-            expFeat += list(np.eye(len(self.vocabularyWordShapes), dtype=np.int32)[dp[8]])
+            expFeat.append(int(dp[48]))
 
-            expFeat += list(np.eye(len(self.vocabularyWordShapes), dtype=np.int32)[dp[9]])
+            expFeat += list(dp[49:59])  # TODO - Add all features of prev word in the mix
 
-            expFeat += list(np.eye(len(self.vocabularyPOSTags), dtype=np.int32)[dp[10]])
-
-            expFeat += list(np.eye(len(self.vocabularyWordnetLem), dtype=np.int32)[dp[11]])
-
-            expFeat.append(int(dp[12]))
-
-            expFeat += list(np.eye(len(self.vocabularyWords), dtype=np.int32)[dp[13]]) # TODO - Add all features of prev word in the mix
-
-            expFeat += list(np.eye(len(self.vocabularyWords), dtype=np.int32)[dp[14]])
+            expFeat += list(dp[59:69])
 
             X.append(expFeat)
 
         return X
-
-
 
     def sentTokenize(self, doc):
         """
@@ -275,28 +308,28 @@ class PreProcess(object):
             for i, sent in enumerate(sents):
                 words = self.word_tokenizer.tokenize(sent)
                 labels.append([0] * len(words))
-                pos = self.tagger.tag(words)
+                #pos = self.tagger.tag(words)
                 doc.append(words)
-                for word, tag in pos:
-                    if not word in self.vocabularyWords:  # TODO test by using only lower case words
-                        self.vocabularyWords.append(word)  # Creating a list of all the unique words present
-                        # in the dataset. This helps us represent features
-                        # like words with an appropriate IR model
-
-                    temp = self.porterStemmer.stem(word)
-                    if not temp in self.vocabularyPortStem:
-                        self.vocabularyPortStem.append(temp)  # Creating a list of all the unique words obtained
-                        # by using Porter Stemming algorithm
-
-                    temp = self.lancasterStemmer.stem(word)
-                    if not temp in self.vocabularyLancStem:
-                        self.vocabularyLancStem.append(temp)  # Creating a list of all the unique words obtained
-                        # by using Lancaster Stemming algorithm
-
-                    temp = self.wordnetLemmatizer.lemmatize(word, pwn.penn_to_wn(tag))
-                    if not temp in self.vocabularyWordnetLem:
-                        self.vocabularyWordnetLem.append(temp)  # Creating a list of all the unique words obtained
-                        # by using Wordnet Lemmatizer
+                # for word, tag in pos:
+                #     if not word in self.vocabularyWords:  # TODO test by using only lower case words
+                #         self.vocabularyWords.append(word)  # Creating a list of all the unique words present
+                #         # in the dataset. This helps us represent features
+                #         # like words with an appropriate IR model
+                #
+                #     temp = self.porterStemmer.stem(word)
+                #     if not temp in self.vocabularyPortStem:
+                #         self.vocabularyPortStem.append(temp)  # Creating a list of all the unique words obtained
+                #         # by using Porter Stemming algorithm
+                #
+                #     temp = self.lancasterStemmer.stem(word)
+                #     if not temp in self.vocabularyLancStem:
+                #         self.vocabularyLancStem.append(temp)  # Creating a list of all the unique words obtained
+                #         # by using Lancaster Stemming algorithm
+                #
+                #     temp = self.wordnetLemmatizer.lemmatize(word, pwn.penn_to_wn(tag))
+                #     if not temp in self.vocabularyWordnetLem:
+                #         self.vocabularyWordnetLem.append(temp)  # Creating a list of all the unique words obtained
+                #         # by using Wordnet Lemmatizer
             for line in con:
                 c, t = line.split('||')
                 t = t[3:-2]
@@ -331,6 +364,37 @@ class PreProcess(object):
 
         return (doc, labels)
 
+    def makeWord2VecModels(self, dim=WED):
+
+        sents = list()
+        pSents = list()
+        lSents = list()
+        wnSents = list()
+        for doc in self.docs:
+            for sent in doc:
+                sents.append(sent)
+
+                pSent = list()
+                lSent = list()
+                wnSent = list()
+
+                for word, pos in self.tagger.tag(sent):
+                    pSent.append(self.porterStemmer.stem(word))
+                    lSent.append(self.lancasterStemmer.stem(word))
+                    wnSent.append(self.wordnetLemmatizer.lemmatize(word, pwn.penn_to_wn(pos)))
+
+                pSents.append(pSent)
+                lSents.append(lSent)
+                wnSents.append(wnSent)
+        print "Word Model"
+        self.wvModel = Word2Vec(sents, size=dim, window=5, min_count=5, workers=4)
+        print "Porter Model"
+        self.wvModelPorter = Word2Vec(pSents, size=dim, window=5, min_count=5, workers=4)
+        print "Lancaster Model"
+        self.wvModellancaster = Word2Vec(lSents, size=dim, window=5, min_count=5, workers=4)
+        print "Wordnet Model"
+        self.wvModelWnLemmatizer = Word2Vec(wnSents, size=dim, window=5, min_count=5, workers=4)
+
     def makeFeatureList(self):
         """
         This method runs all the neccessary modules to generate the final feature
@@ -347,12 +411,13 @@ class PreProcess(object):
             ngram_vecs = self.calcNgramFeats()
 
             assert len(ngram_vecs) == len(sent_vecs) == len(word_vecs)
+
+            return np.hstack((word_vecs, sent_vecs, ngram_vecs))
+
         except Exception as e:
             print "Failing to create Feature list..."
             print str(e.message)
-            return False
-
-        return np.hstack((word_vecs, sent_vecs, ngram_vecs))
+            exit(0)
 
     def calcWordFeats(self):
         """
@@ -361,13 +426,16 @@ class PreProcess(object):
         """
         try:
             print "Extracting word level features.."
-            word_vecs = []
+            word_vecs = list()
             for doc in self.docs:
                 for sent in doc:
 
                     for i in range(len(sent)):
-                        word_vec = []
-                        word_vec.append(self.vocabularyWords.index(sent[i]))  # Adding Word as a feature
+                        word_vec = list()
+                        try:
+                            word_vec += list(self.wvModel.wv[sent[i]])  # Adding Word as a feature
+                        except Exception as e:
+                            word_vec += [-1] * WED
 
                         word_vec.append(len(sent[i]))  # Adding length of word as a Feature
 
@@ -378,11 +446,15 @@ class PreProcess(object):
                             print "No match in regex lib"
                             exit(0)
 
-                        word_vec.append(
-                            self.vocabularyPortStem.index(self.porterStemmer.stem(sent[i])))  # Porter stemming
-
-                        word_vec.append(
-                            self.vocabularyLancStem.index(self.lancasterStemmer.stem(sent[i])))  # Lancaster stemming
+                        try:
+                            word_vec += list(self.wvModelPorter.wv[self.porterStemmer.stem(sent[i])])  # Porter stemming
+                        except Exception as e:
+                            word_vec += [-1] * WED
+                        try:
+                            word_vec += list(
+                                self.wvModellancaster.wv[self.lancasterStemmer.stem(sent[i])])  # Lancaster stemming
+                        except Exception as e:
+                            word_vec += [-1] * WED
 
                         wordShapes = ws.getWordShapes(sent[i])
                         for shape in wordShapes:
@@ -391,14 +463,14 @@ class PreProcess(object):
                             else:
                                 self.vocabularyWordShapes.append(shape)
                                 word_vec.append(self.vocabularyWordShapes.index(shape))
-                        print str(sent[i]) + ": " + str(word_vec)
+                        # print str(sent[i]) + ": " + str(word_vec)
                         word_vecs.append(word_vec)
 
             return word_vecs
         except Exception as e:
             print "Failed to calculate word features"
             print str(e.message)
-            return False
+            exit(0)
 
     def evalRegex(self, word):
         '''
@@ -480,7 +552,7 @@ class PreProcess(object):
 
         try:
             print "Extracting sentence level features.."
-            sent_vecs = []
+            sent_vecs = list()
             for doc in self.docs:
                 for j, sent in enumerate(doc):
 
@@ -492,15 +564,17 @@ class PreProcess(object):
                         else:
                             self.vocabularyPOSTags.append(tag)
                             sent_vec.append(self.vocabularyPOSTags.index(tag))
-                        sent_vec.append(self.vocabularyWordnetLem.index(self.wordnetLemmatizer.lemmatize(word, \
-                                                                                                         pwn.penn_to_wn(
-                                                                                                             tag))))
+                        try:
+                            sent_vec += list(self.wvModelWnLemmatizer.wv[self.wordnetLemmatizer.lemmatize(word)])
+                        except Exception as e:
+                            sent_vec += [-1] * WED
+
                         right = " ".join([w for w in sent[j:]])
                         if self.is_test_result(right):
                             sent_vec.append(1)
                         else:
                             sent_vec.append(0)
-                        print word + ": " + str(sent_vec)
+                        # print word + ": " + str(sent_vec)
                         sent_vecs.append(sent_vec)
 
             return sent_vecs
@@ -508,7 +582,7 @@ class PreProcess(object):
         except Exception as e:
             print "Failed to calculate sentence features"
             print str(e.message)
-            return False
+            exit()
 
     def is_test_result(self, context):
         # note: make spaces optional?
@@ -530,23 +604,31 @@ class PreProcess(object):
             for doc in self.docs:
                 for sent in doc:
 
-                    for i in range(len(sent)):
+                    for i, word in enumerate(sent):
                         ngram_vec = []
                         if i == 0:
-                            ngram_vec.append(-1)
+                            ngram_vec += [-1] * WED
                         else:
-                            ngram_vec.append(self.vocabularyWords.index(sent[i - 1]))
+                            try:
+                                ngram_vec += list(self.wvModel.wv[word])
+                            except Exception as e:
+                                ngram_vec += [-1] * WED
                         if i == len(sent) - 1:
-                            ngram_vec.append(-1)
+                            ngram_vec += [-1] * WED
                         else:
-                            ngram_vec.append(self.vocabularyWords.index(sent[i + 1]))
+                            try:
+                                ngram_vec += list(self.wvModel.wv[word])
+                            except Exception as e:
+                                ngram_vec += [-1] * WED
 
-                        print sent[i] + ": " + str(ngram_vec)
+                        # print sent[i] + ": " + str(ngram_vec)
                         ngram_vecs.append(ngram_vec)
 
             return ngram_vecs
         except Exception as e:
             print "Failed to calculate ngram features"
             print str(e.message)
-            return False
-data = PreProcess("data/concept_assertion_relation_training_data/beth/")
+            exit(0)
+
+
+#data = PreProcess("data/concept_assertion_relation_training_data/beth/")
