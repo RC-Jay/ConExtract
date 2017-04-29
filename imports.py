@@ -23,6 +23,7 @@ from itertools import cycle
 import time
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
+
 LOAD_DOCS = True
 LOAD_FEATS = True
 WORD2VEC = True

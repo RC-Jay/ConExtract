@@ -610,14 +610,14 @@ class PreProcess(object):
                             ngram_vec += [-1] * WED
                         else:
                             try:
-                                ngram_vec += list(self.wvModel.wv[word])
+                                ngram_vec += list(self.wvModel.wv[sent[i-1]])
                             except Exception as e:
                                 ngram_vec += [-1] * WED
                         if i == len(sent) - 1:
                             ngram_vec += [-1] * WED
                         else:
                             try:
-                                ngram_vec += list(self.wvModel.wv[word])
+                                ngram_vec += list(self.wvModel.wv[sent[i+1]])
                             except Exception as e:
                                 ngram_vec += [-1] * WED
 

@@ -8,10 +8,10 @@ X, y = dp.getFeatures()
 print "Original Data shape = " + str(Counter(y))
 
 retVecs = {}
-# print "Unsampled data with libsvm"
-# print "==============================================================="
-# ml = ML(X,y)
-# retVecs['unsampled'] = ml.libsvm(target_names=['None', 'Problem', 'Treatment', 'Test'])
+print "Unsampled data with libsvm"
+print "==============================================================="
+ml = ML(X,y)
+retVecs['unsampled'] = ml.libsvm(target_names=['None', 'Problem', 'Treatment', 'Test'])
 
 print "Undersampled data using Clustered Centroids with libsvm"
 print "==============================================================="
